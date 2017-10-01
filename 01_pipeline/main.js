@@ -193,11 +193,11 @@ function createRobot() {
   robotTransformationNode.append(leftLegTransformationNode);
 
   //transformation of right leg and right leg
-  var rightLegtTransformationNode = new TransformationSGNode(
+  var rightLegTransformationNode = new TransformationSGNode(
       mat4.multiply(mat4.create(), glm.translate(-0.16,-0.6,0), glm.scale(0.2,1,1)),[
         new RenderSGNode( makeCube() )
       ]);
-  robotTransformationNode.append(rightLegtTransformationNode);
+  robotTransformationNode.append(rightLegTransformationNode);
 
   return robotAnimationNode;
 }

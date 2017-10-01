@@ -166,7 +166,7 @@ function init(resources) {
 function createRobot() {
   //transformations of whole body
   // --- TASK 1-1 ---
-  robotTransformationNode = new TransformationSGNode(glm.translate(0.0,0.0,0));
+  robotTransformationNode = new TransformationSGNode(mat4.create());
 
 
 
