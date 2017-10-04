@@ -1038,10 +1038,17 @@ class LightSGNode extends TransformationSGNode {
 
   constructor(position, children) {
     super(children);
-    this.position = position || [0, 0, 0];
-    this.ambient = [0, 0, 0, 1];
-    this.diffuse = [1, 1, 1, 1];
-    this.specular = [1, 1, 1, 1];
+    if (position instanceof LightSGNode) {
+      this.position = position.position;
+      this.ambient = position.ambient;
+      this.diffuse = position.diffuse;
+      this.specular = position.specular;
+    } else {
+      this.position = position || [0, 0, 0];
+      this.ambient = [0, 0, 0, 1];
+      this.diffuse = [1, 1, 1, 1];
+      this.specular = [1, 1, 1, 1];
+    }
     //uniform name
     this.uniform = 'u_light';
 
