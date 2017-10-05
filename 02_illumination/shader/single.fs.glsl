@@ -1,8 +1,8 @@
 /**
- * a phong shader implementation
- * Created by Samuel Gratzl on 29.02.2016.
+ * a static color shader implementation (white)
  */
 precision mediump float;
+
 
 void main() {
 	gl_FragColor = vec4(1,1,1,1);

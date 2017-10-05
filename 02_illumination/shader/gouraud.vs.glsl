@@ -1,7 +1,18 @@
 /**
- * a phong shader implementation
+ * a gouraud shader implementation
  */
-precision mediump float;
+attribute vec3 a_position;
+attribute vec3 a_normal;
+
+uniform mat4 u_modelView;
+uniform mat3 u_normalMatrix;
+uniform mat4 u_projection;
+
+//light position as uniform
+uniform vec3 u_lightPos;
+//second light source
+uniform vec3 u_light2Pos;
+
 
 /**
  * definition of a material structure containing common properties
@@ -24,14 +35,11 @@ struct Light {
 };
 
 uniform Material u_material;
+
 uniform Light u_light;
 uniform Light u_light2;
 
-//varying vectors for light computation
-varying vec3 v_normalVec;
-varying vec3 v_eyeVec;
-varying vec3 v_lightVec;
-varying vec3 v_light2Vec;
+varying vec4 v_color;
 
 vec4 calculateSimplePointLight(Light light, Material material, vec3 lightVec, vec3 normalVec, vec3 eyeVec) {
 	lightVec = normalize(lightVec);
@@ -43,7 +51,7 @@ vec4 calculateSimplePointLight(Light light, Material material, vec3 lightVec, ve
 	float diffuse = max(dot(normalVec,lightVec),0.0);
 
 	//compute specular term
-	vec3 reflectVec = normalize(-reflect(lightVec,normalVec));
+	vec3 reflectVec = reflect(-lightVec,normalVec);
 	float spec = pow( max( dot(reflectVec, eyeVec), 0.0) , material.shininess);
 
 
@@ -56,9 +64,21 @@ vec4 calculateSimplePointLight(Light light, Material material, vec3 lightVec, ve
 }
 
 void main() {
+	vec4 eyePosition = u_modelView * vec4(a_position,1);
 
-	gl_FragColor =
-		calculateSimplePointLight(u_light, u_material, v_lightVec, v_normalVec, v_eyeVec)
-		+ calculateSimplePointLight(u_light2, u_material, v_light2Vec, v_normalVec, v_eyeVec);
+  vec3 normalVec = u_normalMatrix * a_normal;
+
+  vec3 eyeVec = -eyePosition.xyz;
+	//light position as uniform
+	vec3 lightVec = u_lightPos - eyePosition.xyz;
+	//second light source position
+	vec3 light2Vec = u_light2Pos - eyePosition.xyz;
+
+	v_color =
+		calculateSimplePointLight(u_light, u_material, lightVec, normalVec, eyeVec)
+		+ calculateSimplePointLight(u_light2, u_material, light2Vec, normalVec, eyeVec);
+
+	gl_Position = u_projection * eyePosition;
+
 
 }

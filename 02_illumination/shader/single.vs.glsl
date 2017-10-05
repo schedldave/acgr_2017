@@ -1,6 +1,5 @@
 /**
- * a phong shader implementation
- * Created by Samuel Gratzl on 29.02.2016.
+ * a static color shader implementation (white)
  */
 attribute vec3 a_position;
 

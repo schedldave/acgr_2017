@@ -4,9 +4,10 @@
 var gl = null;
 var root = null;
 var fieldOfViewInRadians = convertDegreeToRadians(45);
-var rotateLight, rotateLight2, rotateNode;
-var light, light2;
+var rotateLight, rotateLight2, rotateNode; // transformation nodes
+var light, light2; // light
 var c3po, floor; // material
+var phongProgramm, staticProgramm; // shader programs (vs + fs)
 const camera = {
   rotation: {
     x: 0,
@@ -17,7 +18,9 @@ const camera = {
 //load the shader resources using a utility function
 loadResources({
   vs: 'shader/phong.vs.glsl',
-  fs: 'shader/phong.fs.glsl', //gouraud
+  fs: 'shader/phong.fs.glsl', //phong
+  vs_gouraud: 'shader/gouraud.vs.glsl',
+  fs_gouraud: 'shader/gouraud.fs.glsl', //phong
   vs_single: 'shader/single.vs.glsl',
   fs_single: 'shader/single.fs.glsl',
   model: '../models/C-3PO.obj'
@@ -43,7 +46,10 @@ function init(resources) {
 
 function createSceneGraph(gl, resources) {
   //create scenegraph
-  const root = new ShaderSGNode(createProgram(gl, resources.vs, resources.fs));
+  phongProgramm = createProgram(gl, resources.vs, resources.fs);
+  staticProgramm = createProgram(gl, resources.vs_single, resources.fs_single);
+  gouradProgramm = createProgram(gl, resources.vs_gouraud, resources.fs_gouraud);
+  const root = new ShaderSGNode(phongProgramm);
 
   function createLightSphere() {
     return new ShaderSGNode(createProgram(gl, resources.vs_single, resources.fs_single), [
@@ -52,14 +58,13 @@ function createSceneGraph(gl, resources) {
   }
 
   {
-    //TASK 3-6 create white light node at [0, -2, 2]
+    // create white light node
     light = new LightSGNode();
     light.ambient = [0, 0, 0, 1];
-    light.diffuse = [1, 0, 1, 1];
+    light.diffuse = [1, 1, 1, 1];
     light.specular = [1, 1, 1, 1];
     light.position = [0, 2, 2];
     light.append(createLightSphere());
-    //TASK 4-1 animated light using rotateLight transformation node
     rotateLight = new TransformationSGNode(mat4.create(), [
         light
     ]);
@@ -68,7 +73,7 @@ function createSceneGraph(gl, resources) {
 
 
   {
-    //TASK 5-1 create red light node at [2, 0.2, 0]
+    //create red light node at [2, 0.2, 0]
     light2 = new LightSGNode();
     light2.uniform = 'u_light2';
     light2.diffuse = [1, 0, 0, 1];
@@ -82,7 +87,7 @@ function createSceneGraph(gl, resources) {
   }
 
   {
-    //TASK 2-4 wrap with material node
+    //wrap shader with material node
     c3po = new MaterialSGNode([
       new RenderSGNode(resources.model)
     ]);
@@ -90,7 +95,7 @@ function createSceneGraph(gl, resources) {
     c3po.ambient = [0.24725, 0.1995, 0.0745, 1];
     c3po.diffuse = [0.75164, 0.60648, 0.22648, 1];
     c3po.specular = [0.628281, 0.555802, 0.366065, 1];
-    c3po.shininess = 0.4;
+    c3po.shininess = 50;
     c3po.lights = [light,light2];
 
     rotateNode = new TransformationSGNode(mat4.create(), [
@@ -102,7 +107,7 @@ function createSceneGraph(gl, resources) {
   }
 
   {
-    //TASK 2-5 wrap with material node
+    //wrap shader with material node
     floor = new MaterialSGNode([
       new RenderSGNode(makeRect())
     ]);
@@ -114,7 +119,7 @@ function createSceneGraph(gl, resources) {
     floor.shininess = 0.3;
     floor.lights = [light,light2];
 
-    root.append(new TransformationSGNode(glm.transform({ translate: [0,0,0], rotateX: 90, scale: 2}), [
+    root.append(new TransformationSGNode(glm.transform({ translate: [0,0,0], rotateX: -90, scale: 2}), [
       floor
     ]));
   }
@@ -142,7 +147,7 @@ function initInteraction(canvas) {
   canvas.addEventListener('mousemove', function(event) {
     const pos = toPos(event);
     const delta = { x : mouse.pos.x - pos.x, y: mouse.pos.y - pos.y };
-    //TASK 0-1 add delta mouse to camera.rotation if the left mouse button is pressed
+    //add delta mouse to camera.rotation if the left mouse button is pressed
     if (mouse.leftButtonDown) {
       //add the relative movement of the mouse to the rotation variables
   		camera.rotation.x += delta.x;
@@ -181,7 +186,7 @@ function render(timeInMilliseconds) {
   //ReCap: what does this mean?
   context.viewMatrix = mat4.lookAt(mat4.create(), [0,3,-10], [0,0,0], [0,1,0]);
 
-  //TASK 0-2 rotate whole scene according to the mouse rotation stored in
+  //rotate whole scene according to the mouse rotation stored in
   //camera.rotation.x and camera.rotation.y
   context.sceneMatrix = mat4.multiply(mat4.create(),
                             glm.rotateY(camera.rotation.x),
@@ -189,9 +194,8 @@ function render(timeInMilliseconds) {
 
   rotateNode.matrix = glm.rotateY(timeInMilliseconds*-0.01);
 
-  //TASK 4-2 enable light rotation
+  // light rotation
   rotateLight.matrix = glm.rotateY(timeInMilliseconds*0.05);
-  //TASK 5-2 enable light rotation
   rotateLight2.matrix = glm.rotateY(-timeInMilliseconds*0.1);
 
   root.render(context);
@@ -206,13 +210,28 @@ function convertDegreeToRadians(degree) {
 
 var tmplight, tmplight2;
 function initGUI(){
-  tmplight = new LightSGNode(light);
-  tmplight2 = new LightSGNode(light2);
+
   var gui = new dat.GUI();
   var flight = createGuiLightFolder(gui,light,'light');
   var flight2 = createGuiLightFolder(gui,light2,'light2');
   var fC3poMaterial = createGuiMaterialFolder(gui,c3po,'c3po Material');
   var fFloorMaterial = createGuiMaterialFolder(gui,floor,'floor Material');
+
+  let tmpShader = function(){}; // empty object
+  tmpShader.shader = 0;
+  gui.add(tmpShader, 'shader', { Phong: 0, Static: 1, Gourad: 2 } ).onChange(function(value){
+    switch(value){
+      case 0: case "0":
+        root.program = phongProgramm; break;
+      case 1: case "1":
+        root.program = staticProgramm; break;
+      case 2: case "2":
+        root.program = gouradProgramm; break;
+      // ToDo:
+      // add Blinn
+    }
+  }); // end gui.add
+  gui.closed = true; // close gui to avoid any screen usage
 }
 
 function createGuiLightFolder(gui,light,name){
@@ -256,6 +275,6 @@ function createGuiMaterialFolder(gui,material,name){
   folder.addColor(tmpmaterial, 'emission').onChange(function(value){
     material.emission = value.map(function(x){ return x/255; });
   });
-  folder.add(material,'shininess', 0,1000); // = 0.0;
+  folder.add(material,'shininess', 0,100); // = 0.0;
   return folder;
 }
