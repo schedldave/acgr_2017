@@ -8,6 +8,8 @@ var rotateLight, rotateLight2, rotateNode; // transformation nodes
 var light, light2; // light
 var c3po, floor; // material
 var phongProgramm, staticProgramm; // shader programs (vs + fs)
+var c3poModel, teapotModel;
+var models = [];
 const camera = {
   rotation: {
     x: 0,
@@ -20,10 +22,12 @@ loadResources({
   vs: 'shader/phong.vs.glsl',
   fs: 'shader/phong.fs.glsl', //phong
   vs_gouraud: 'shader/gouraud.vs.glsl',
-  fs_gouraud: 'shader/gouraud.fs.glsl', //phong
+  fs_gouraud: 'shader/gouraud.fs.glsl', //gouraud
+  fs_blinn: 'shader/blinn.fs.glsl', // blinn
   vs_single: 'shader/single.vs.glsl',
   fs_single: 'shader/single.fs.glsl',
-  model: '../models/C-3PO.obj'
+  model: '../models/C-3PO.obj',
+  model2: '../models/teapot.obj'
 }).then(function (resources /*an object containing our keys with the loaded resources*/) {
   init(resources);
 
@@ -47,8 +51,10 @@ function init(resources) {
 function createSceneGraph(gl, resources) {
   //create scenegraph
   phongProgramm = createProgram(gl, resources.vs, resources.fs);
-  staticProgramm = createProgram(gl, resources.vs_single, resources.fs_single);
+  blinnProgramm = createProgram(gl, resources.vs, resources.fs_blinn);
   gouradProgramm = createProgram(gl, resources.vs_gouraud, resources.fs_gouraud);
+  models = { c3po: [new RenderSGNode(resources.model)],
+             teapot: [new TransformationSGNode(glm.transform({scale:[.1,.1,.1], translate:[0,.9,0]}), [new RenderSGNode(resources.model2)])] };
   const root = new ShaderSGNode(phongProgramm);
 
   function createLightSphere() {
@@ -88,9 +94,9 @@ function createSceneGraph(gl, resources) {
 
   {
     //wrap shader with material node
-    c3po = new MaterialSGNode([
-      new RenderSGNode(resources.model)
-    ]);
+    c3po = new MaterialSGNode(
+      Object.values(models)[0]
+    );
     //gold
     c3po.ambient = [0.24725, 0.1995, 0.0745, 1];
     c3po.diffuse = [0.75164, 0.60648, 0.22648, 1];
@@ -219,19 +225,24 @@ function initGUI(){
 
   let tmpShader = function(){}; // empty object
   tmpShader.shader = 0;
-  gui.add(tmpShader, 'shader', { Phong: 0, Static: 1, Gourad: 2 } ).onChange(function(value){
+  gui.add(tmpShader, 'shader', { Phong: 0, Blinn: 1, Gourad: 2 } ).onChange(function(value){
     switch(value){
       case 0: case "0":
         root.program = phongProgramm; break;
       case 1: case "1":
-        root.program = staticProgramm; break;
+        root.program = blinnProgramm; break;
       case 2: case "2":
         root.program = gouradProgramm; break;
-      // ToDo:
-      // add Blinn
     }
   }); // end gui.add
-  gui.closed = true; // close gui to avoid any screen usage
+
+  let tmpModel = function(){}; tmpModel.children = Object.keys(models)[0];
+  gui.add( tmpModel, 'children', Object.keys(models) ).onChange(function(value){
+    c3po.children = models[value];
+  });
+
+  gui.closed = true; // close gui to avoid using up too much screen
+
 }
 
 function createGuiLightFolder(gui,light,name){
